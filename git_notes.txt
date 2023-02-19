@@ -1,0 +1,927 @@
+Git Branching Course Notes: MAIN
+
+----------------
+     Intro
+----------------
+
+Lv 1: Intro to Git Commits
+
+- commit in git repo records snapshot of all tracked files  in dir
+	-> git also maintains history of which commits made when
+
+git commit //made changes to repo and saved as a new commit -> commit has parent that ref which commit it was based off
+ 
+
+Lv 2: Branching in Git
+
+- branchers are simply pointers to specific commit
+"Branch early, and branch often"
+
+Ie:
+
+create new branch named newImage
+
+	git branch newImage
+		//newImage branch now refers to commit C1 (main*)
+
+	git commit
+		//main* moved to new commit C2 while newImage is still pointed to C1
+		//because we weren't "on" new branch
+
+Solution:
+	git checkout newImage; git commit
+		//changes now recorded on new branch, main stays at C1 while newImage* points to C2
+
+Lv 1 Problem:
+
+	make new branch bugFix and switch to branch
+	*shortcut to create new branch and checkout at same time: *
+		git checkout -b <branchname>
+
+	git checkout -b bugFix
+
+Lv 3: Merging in Git
+
+git merge
+	// allows us to combine work from two dif branches together
+
+ie: c0 -> c1 -> c2 (bugFix)
+	     -> c3 (main*)
+
+git merge bugFix
+	//Output: c0 -> c1 -> c2 (bugFix) _> c4 (main*)
+			   -> c3	 
+	//main now points to commit that has two parents, so main contains all the work in repo now
+
+- to merge main into bugFix:
+	git checkout bugFix; git merge main
+		//sets head to bugFix, merges it into main
+
+Lv 3 Problem:
+
+	make new branch bugFix, checkout bugFix with git checkout, commit once, go back to main, commit again, merge bugFix into main
+
+		git checkout -b bugFix
+		git  commit
+		git checkout  main
+		git commit
+		git merge bugFix
+
+Lv 4: Git Rebase
+
+-second way of combining work between branches is rebasing
+- essentially takes set of commits, "copies" them, and puts them somewhere else
+
+git rebase main // takes commit from other branch (HEAD is at that commit), and puts a copy of it under main
+	*if head is ancestor of commit being rebased, git rebase "branch name" will automatically 
+
+Lv 4 Problem:
+
+	checkout new branch bugFix, commit, go back to main and commit again, checkout bugFix again and rebase onto main
+
+		git checkout -b bugFix
+		git commit
+		git checkout main
+		git commit
+		git checkout bugFix
+		git rebase main
+
+-----------------
+   Ramping Up
+-----------------
+
+Lv 1: Detach yo' HEAD
+
+HEAD : symbolic name for currently checked out commit - what commit you're working on top of
+	-> always points to most recent commit
+Detaching HEAD : attaching it to a commit instead of branch
+
+Lv 1 Problem:
+	detach head from bugfix and attach it to commit instead
+	specify commit by hash, hash  is displayed on circle that represents commit
+		ie: git checkout C4 //moves HEAD to point to C4
+
+Lv 2: Relative Refs (^)
+
+- use git log to see commit hashes
+^ : move upwards one commit at a time
+	-appending ^ to ref name tells git to find parent of specified commit
+	ie: main^ => "the first parent of main"
+-<num> : move upwards a number of times
+
+Lv 2 Problem:
+
+        check out parent commit of bugFix
+                => git checkout bugFix^
+
+Lv 3: Relative Refs #2 (~)
+
+~ : takes in trailing number which specifies number of parents you'd like to ascend
+	ie: git checkout HEAD~4 => goes up 4 and moves head to the hash we're at now
+
+-common way to use relative refs is to move branches around
+-can directly reassign branch to commit with -f option
+	ie: git branch -f main HEAD~3 => moves the main branch to three parents behind HEAD
+
+Lv 3 Problem:
+
+	move HEAD, main, and bugFix to goal destinations
+		git checkout C6 -> commits C6
+		git branch -f main C6 -> moves main branch to commit C6
+		git checkout HEAD~3 -> moves head up 3 parents
+		git branch -f bugFix C0 -> moves bugFix branch to commit C0
+
+Lv 4: Reversing Changes in Git
+
+- 2 primary ways to undo changes in Git
+	1) git reset - reverses changes by moving branch reference backwards in time to older commit
+		ie: git reset HEAD~1 -> main branch ref moved back one
+	2) git revert - reverses changes and shares those reversed changes with others
+		ie: git revert HEAD -> creates new commit with changes that directly reverse previous commit
+
+Lv 4 Problem:
+	reverse the most recent commit on both local and pushed, one per branch
+	*pushed is remote branch and local is local branch
+		git reset local~1
+		git checkout pushed
+		git revert pushed
+
+----------------------
+  Moving Work Around
+----------------------
+
+Lv 1: Cherry-pick Intro
+
+git cherry-pick <Commit1> <Commit2> <...> : basically says you would like to copy a series of commits below your current location (HEAD)
+
+- good for when you know which commits you want and their corresponding hashes
+ 
+Lv 1 Problem:
+
+	copy some work from three branches shown into main -> copy commits C3, C4, and C7
+		git cherry-pick C3 C4 C7
+	
+Lv 2: Git Interactive Rebase Intro
+
+-used when you don't know what commits you want - best way to review series of commits you're about to rebase
+-basically git is using rebase command with -i option
+-git will open up UI to show which commits are about to be copied below target of rebase
+	- also shows commit hashes and messages
+-when interactive rebase dialog opens, you can do two things
+	1) reorder commits by changing order in UI
+	2) choose to keep all commits or drop specific ones
+
+	git rebase -i HEAD~4
+		-> after changing order and/or dropping commits in UI, git copies down commits in specified way
+		-> HEAD is moved to most recent commit
+
+Lv 2 Problem:
+
+	do an interactive rebase and achieve order shown in goal -> C3 C5 C4
+	*can use undo or reset to fix mistakes*
+		git rebase -i HEAD~4 // HEAD~4 tells git to branch copies off the commit 4 above HEAD 
+
+---------------
+  A Mixed Bag
+---------------
+
+Lv 1: Grabbing just 1 Commit
+
+Common Dev Situation: tracking down bug -> put in debug commands and print statements (these are all in their own commits) -> bug is tracked down and fixed
+	Problem: need to get bugFix back into main branch, but don't want main to get all debug/print statements
+	-> need to tell git to copy only one of commits over
+	-> use earlier commands:
+		git rebase -i
+		     OR
+		git cherry-pick
+
+Lv 1 Problem:
+	make sure main receives the commit that bugFix references (C4)
+ 		git checkout main // moves HEAD to main
+		git cherry-pick C4 //  copies C4 commit under main and updates HEAD location
+
+
+Lv 2: Juggling Commits
+
+Common Situation: you have changes (newImage) and another set of changes (caption) that are related
+			-> they are stacked on top of each other in repo
+	Problem: sometimes, need to make small modification to earlier commit
+		-> in this case, need to change dimensions of newImage slightly
+
+	Solution: re-order commits so one we wanna change is on top
+			git rebase -i
+		  use following command to make slight modification
+			git commit --amend
+		  re-order commits back to how they were 
+			git rebase -i
+		  move main to updated part of tree
+
+Lv 2 Problem:
+	
+	solve problem mentioned above : should look like C1 -> C2''' -> C3'' (main*, caption) 
+		git rebase -i HEAD~2 // we want to ammend c3, so drag and drop c3 to top
+		git commit --amend // makes mod to caption*, results in C2'' (mod-ed version of C3)
+		git rebase -i HEAD~2 // move C2'' back up top, makes branch off main such that c2''' -> c3'' (caption*)
+		git checkout main // moves head to main
+		git merge caption // merges caption to main -> main* is now pointing to C3'' along with caption
+		
+Lv 3: Juggling Commits #2
+
+- issue with using rebase -i to reorder commits is there's a lot of reordering going on -> introduced rebase conflicts
+- another method is using cherry-pick
+	*reminder: git cherry-pick will "plop" down a commit from anywhere in tree onto HEAD as long as commit isn't an ancestor of HEAD
+
+Lv 3 Problem:
+
+	same objective of amending C2 once, but without using rebase -i
+		git checkout main // move head to main
+		git cherry-pick C2 // we create a separate branch off main to isolate C2
+		git commit --amend // creates a separate branch off C1 with modified C2
+		git cherry-pick C3 // creates a copy of C3 based off modified C2, also moves main* to C3'
+		
+	*NOTE: makes no difference if we use commit (C2/C3) or commit hash (newImage/caption) in commands above
+		 	
+Lv 4: Git Tags
+
+- branches are easy to move around, often refer to different commits as work is done
+	-> easily mutated, often temporary, always changing
+- for things like major releases/big merges, way to mark these commits with something more permanent than branch? -> GIT TAGS
+
+- tags permanently mark certain commits as "milestones" that can be referenced like branch
+- never move as more commits are created
+
+git tag v1 C1 // names tag as v1 and references C1 explicitly
+		-> if don't specifiy commit, git will place tag at wherever HEAD is at
+
+Lv 4 Problem:
+
+	create tags in goal and check v1 out -> v0 @ C1, v1 @ C2, HEAD @ C2
+	  - can't commit directly onto v1 tag
+		git tag v0 C1
+		git tag v1 C2
+		git checkout C2 //moves head only to C2
+
+Lv 5: Git Describe
+
+- command to describe where you are relative to the closest "anchor" (aka tag)
+	git describe <ref>
+		- <ref> is anything git can resolve into commit -> if ref not specified, git uses where you're checked out in moment (HEAD)
+
+	Output: <tag>_<numCommits>_g<hash>
+		- tag : closest ancestor tag in history
+		- numCommits: how many commits away tag is
+		- <hash> : hash of commit being described
+
+ie:
+Current: v1 @ C0
+	 C0 -> C1
+	 C1 branches off into C2 and C3
+	 side* -> C4 // HEAD's current location
+	 main -> C2
+
+git tag v2 C3 // C3 is tagged
+git describe main
+	// Output: v1_2_gC2
+	// main is in separate branch from v2, so closest tag is v1(@ C2) which is 2 commits away
+
+git describe side
+	//Output: v2_1_gC4
+	//side is in same branch as v2, so most closest tag is v2(@ C3) which is 1 commit away	
+
+Lv 5 Problem:
+	
+	describe a few locations in level, commit once to finish level
+		git describe main //Output: v0_2_gC2
+		git describe C2 //Output: v0_2_gC2
+		git describe bugFix //Output: v1_2_gC6
+
+-------------------
+  Advanced Topics
+-------------------		
+
+Lv 1: Rebasing over 9000 Times/Rebasing Multiple Branches
+
+Problem: lots of branches, want to rebase all work from branches onto main
+		-> management wants commits to all be in seq order, so final tree should have c7' at bottom, c6' above that, etc
+
+Goal: c0 -> c1 -> c2 -> c3' (bugFix) -> c4' -> c5' -> c6 (side) -> c7' (main*, another)
+
+Solution:
+
+	git rebase main bugFix //copies bugFix under main, head is now pointed at bugFix
+	git rebase bugFix side // copies whole set of commits above C6 (side) under head
+			       // so C4', C5', C6' (side*) is moved under bugFix (C3')
+	git rebase side another // copies another under side, head is at another
+	git rebase another main // moves head to main and moves main* to point at another
+
+	** If we did git rebase side main, head would be at main and main* would point to side**
+
+Lv 2: Multiple Parents/Specifying Parents
+
+- like ~ modifier, ^ also accepts optional number after
+- modifier on ^ specifies which parent ref to follow from merge commit
+	- git usually follows "first" parent upwards from merge commit but specifying num with ^ changes default behavior
+
+ie: 
+	C0
+       /  \
+      C1  C2
+      |   /
+       C3 (main*)
+
+git checkout main^
+	//default behaviour: head is moved up to C1 since first parent is positioned directly above merge commit
+
+git checkout main^2
+	//head now points to C2
+
+* ~ and ^ modifiers make moving around a commit tree very powerful
+
+ie: 
+	C0
+       /  \
+      C1  C3
+      |   |
+      C2  C4
+      |   |
+      |   C5
+      |  /
+      C6
+      |
+      C7 (main*)
+
+git checkout HEAD~
+	//moves head to C6
+git checkout HEAD^2
+	//moves head to C5
+git checkout HEAD~2
+	//moves head to C3
+
+- modifiers can be chained together
+
+ie:
+	C0
+       /  \
+      C1  C3
+      |   |
+      C2  C4
+      |   |
+      |   C5
+      |  /
+      C6
+      |
+      C7 (main*)
+
+git checkout HEAD~^2~2
+	//same movement as before but in one command
+
+Lv 2 Problem:
+
+	create a new branch at specified destination using modifiers only -> bugFix @ C2
+
+Initial commit tree:
+
+	C0
+	|
+	C1
+       /  \
+      C2  C3
+      |   |
+      C5  C4
+        \ |
+	 C6
+	 |
+	 C7 (main*)
+
+	git checkout HEAD~^2~
+		//moves head to C2
+	git checkout -b bugWork
+		//creates new branch at C2
+	git checkout main
+		//brings head back to main
+Solution:
+	git branch bugWork main^^2^
+		//branch can have an additional parameter determining where branch should be made
+
+Lv 3: Branch Spaghetti
+
+- we have main that's a few commits ahead of branches one, two, and three
+- need to update these three branches with modified versions of last few commits on main
+- branch one:
+	- needs re-ordering of commits and exclusive drop of C5
+- branch two:
+	- needs pure reordering of commits
+- branch three:
+	- only needs one commit transferred
+
+Solution:
+So Far:
+
+git checkout three; git merge C2 // moves head to three, points three to C2
+git checkout C4 //moves head to C4
+git rebase -i HEAD~3 //copies commits up to C4 and branches off three above head (C1)
+git checkout one; git merge C2' //moves head to one and points it to C2'
+git checkout C5 //moves head to C5
+git rebase -i HEAD~4 //copies commits up to C5 and branches off four above head (C1)
+git checkout two; git merge C2'' //moves head to one and points it to C2''
+
+More Efficient Solution:
+
+git checkout one //moves head to one
+git cherry-pick C4 C3 C2 //copies commits C4 C3 C2 (in that order) and branches them off where one* is
+			 //updates one* to point to most recent of commits (C2')
+git checkout two //moves head to two
+git cherry-pick C5 C4 C3 C2 //copies commits C5 C4 C3 C2 and branches them off where two* is, updates two* to point to C2''
+git branch -f three C2 //moves three to point to C2
+
+Need to get to:
+
+	C0
+	|
+	C1
+      /  |  \
+   C2-3  C4' C5'
+     |   |   |
+    C3  C3'  C4''
+     |   |   |
+    C4  C2'1 C3''
+     |       |
+    C5m      C2''2*
+
+
+Git Branching Course Notes: REMOTE
+
+----------------------------
+Push & Pull -- Git Remotes!
+----------------------------
+
+Lv 1: Clone Intro/Git Remotes
+
+Git Remotes - basically just copies of your repo on another computer, allows you to transfer commits back and forth
+
+Properties of Remote Repo's:
+	-serve as great backups: local repos have ability to restore files to previous state but all that info is stored locally -> having copies of git repo on other computers, you can lose all local data and still pick up where you left off
+
+	-makes coding social: since copy of project is hosted elsewhere, others can contribute to project or pull in latest changes very easily
+
+command to set up environment for remote repo work:
+	git clone
+
+*technically, git clone creates l o c a l copies of remote repos, but for this course, it will make a remote repo out of local repo*
+
+Lv 1 Problem:
+
+	simply git clone existing repo
+
+		git clone //Output: copy of whole tree to side
+			  //ALSO -> new branch in local repo called o/main
+					-> called a remote branch: reflect state of remote repos, help understand difference between local work and public work
+					-> when remote branches are checked out, puts you in detached head mode
+					-> remote branches are on LOCAL repo, not remote
+
+Lv 2: Git Remote Branches
+
+"o/" - remote branches have required naming convention in format of:
+		<remote name>/<branch name>
+
+ie: o/main //branch name is main and name of remote is o
+
+- common practice to name main remote "origin" -> git sets up remote to name "origin" when you git clone repo
+
+ie: checking out remote branch
+
+git checkout o/main; git commit
+	//put into detached head mode and did not update o/main
+	//o/main only updates when remote updates
+
+Lv 2 Problem:
+	commit once off main and one after checking out o/main
+
+		git commit //new commit with main*
+		git checkout o/main; git commit //detached head points to C1 not o/main, new commit C4 does not have any branch pointing to it
+
+Lv 3: Git Fetch
+
+git fetch : command for fetching data from REMOTE repo
+
+*as representation of remote repo is updated, remote BRANCHES will update to reflect new representation*
+
+What Fetch does:
+
+-performs two main steps
+	1) downloads commits that the remote has but are missing from local
+	2) updates where remote branches point
+-essentially brings local rep of remote repo into sync with actual remote repo rep
+*git fetch usually talks to remote repo through internet via protocol like http:// or git://*
+
+*NOTE: fethc does not change anything about LOCAL state, will not update main branch or change anything about how file system looks locally*
+
+Lv 3 Problem:
+
+	simply git fetch and download all commits
+		git fetch
+
+Lv 4: Git Pull
+
+- now that we can fetch data from remote repo, we need to be able to update our work to reflect those changes
+
+- once you have new commits available locally, you can incorporate them as if they were normal commits on other branches -> you can execute commands like:
+	
+	- git cherry-pick o/main
+	- git rebase o/main
+	- git merge o/main
+	- etc
+
+- workflow of fetching remote changes and then merging them is so common, git provides a command that does both at once:
+		git pull
+
+ie: fetch and merge executed sequentially
+
+git fetch; git merge o/main
+	//we download new remote commits with fetch, then merge so that main* branch reflects new work from remote
+
+git pull
+	//does the exact same thing as above
+
+Lv 4 Problem:
+
+	fetch and merge from remote repo
+
+		git pull
+
+Lv 5: Collaboration/fakeTeamwork
+
+- need to learn how to pulll down changes that were introduced in remote
+	- essentially need to "pretend 
+
+- for this course: git fakeTeamwork
+
+ie: git fakeTeamwork foo 3
+	//with one command, we simulated a teammate pushing three commits to foo branch on remote
+	//can specify number of commits or branch by appending to command
+
+Lv 5 Problem:
+
+	make a remote with git clone, fake some changes on that remote, commit youself, then pull down changes
+
+Solution:
+
+git clone //clones repo st remote has just C0 -> C1 (main)
+git fakeTeamwork 2 // simulates someone else making commits to remote repo, specifies two commits to add
+git commit //creates new commit in local repo
+git pull //updates local repo with new commits from remote repo AND merges current latest commit from both into a new commit C5 (main*)
+
+Goal:
+
+	C0		C0
+	|		|
+	C1		C1
+       /  \		|
+      C4  C2		C2
+       \   |		|
+	\  C3 (o/m)	C3 (main)
+	 \ |		
+	  C5 (main*)
+
+Lv 6: Git Push
+
+- how to share local work with everyone else?
+
+git push : responsible for uploading local changes to specified remote and updating that remote repo to incorporate local new commits
+	-> basically command to publish your work
+
+ie: 
+	before: local is C0 -> C1 (o/main) -> C2 (main*)
+		remote is C0 -> C1 (main)
+
+git push
+	// remote received commit C2, branch main on remote was updated to point at C2, and own reflection of remote (o/main) was updated as well
+
+	after: local is C0 -> C1 -> C2 (main*, o/main)
+	       remote is C0 -> C1 -> C2 (main)
+
+Lv 6 Problem:
+
+	simply share two new commits with remote
+
+	git commit; git commit; git push
+
+Lv 7: Diverged Work
+
+- difficulty in dealing with remote repo's is when history of repo diverges
+
+ie:
+ 	- if repo cloned on monday, changes made locally and ready to publish by friday -> coworkers have made changes throughout week that renders your local features obsolete AND they've published their commits to shared remote repo so your local work is based on older version of project
+	- due to ambiguity in situation where history has diverged, git DOESNT ALLOW you to push changes -> forces you to incorporate latest state of remote BEFORE being able to share your work
+
+ie: 
+
+	local: C0 -> C1 (o/main) -> C3 (main*)
+	remote: C0 -> C1 -> C2 (main)
+
+	** git push does nothing because most recent local commit (C3) is based off remote at C1
+		-> HOWEVER, most recent remote commit has been updated to C2, so git rejects your push**
+
+How to Resolve:
+	- all you need to do is base your work off the most recent version of remote branch
+		-> most straightforward way is to move work via rebasing
+
+ie: 
+	local: C0 -> C1 (o/main) -> C3 (main*)
+        remote: C0 -> C1 -> C2 (main)
+
+	git fetch //downloads most recents commits from remote (local tree now has C2)
+	git rebase o/main //rebased local tree to reflect new changes in remote (created new commit C3' with changes from local C3 as well as updated work from C2  and branched it off local C2)
+	git push //updated remote repo with local changes which points remote main to C3' (and updates location of remote branch in local so that o/main also points to C3')
+
+	local: C0 -> C1 -> C2 -> C3' (main*, o/main)
+			-> C3
+	remote: C0 -> C1 -> C2 -> C3' (main)
+
+Other ways to update local work when remote repo has been updated:
+
+	- use merge
+		-> while git merge doesn't move local work (creates merge commit instead), still tells git that you've incorporated all changes from remote into new merge commit
+
+Shorthand:
+
+	- while git pull is shorthand for a fetch and merge, 
+		git pull --rebase is shorthand for fetch and rebase
+
+Lv 7 Problem:
+	clone repo, fake some teamwork (1 commit), 1 commit yourself, publish via rebasing
+
+	git clone; git fakeTeamwork; git commit //clones local repo, commits done in remote, commits done locally
+	git pull --rebase //pull command fetches new commits from remote, --rebase creates C3' based off local C3 and newly incorporated C2 from remote
+	git push //updates remote repo with C3'
+
+Lv 8: Locked Main/Remote Rejected
+
+-if working on large collab team, likely that main is locked and requires pull request to merge changes
+	-> if commit directly to main locally and try pushing, will get message like:
+		"! [remote rejected] main -> main (TF402455: Pushes to this branch are not permitted; you must use a pull request to update this branch.)"
+
+Why rejected?
+	- remote rejected push of commits directly to main because of policy on main requiring pull reqs to be used
+
+	- follow process by creating a branch then pushing that branch and doing a pull req
+		-> if forgotten and committed directly to main, you're stuck and cannot push local changes
+Lv 8 Problem:
+	
+	- create another branch called feature and push that to remote, reset main back to be in sync with remote otherwise might have issue next time you do a pull and someone else's commit conflicts with yours
+
+	git reset o/main // since head is at main, reset moves main* to where o/main is (puts local main back in sync with remote main)
+	git checkout -b feature C2 //creates new branch feature at specified commit C2 and points head to feature
+	git push origin feature //does same thing as git push? -> pushes new branch and new commit C2 to remote repo where feature points to C2 -> ALSO creates and updates location of local remote branch o/feature so that it reflects where feature in remote repo is pointed
+
+-----------------------------------------------
+ To Origin and Beyond -- Advanced Git Remotes
+-----------------------------------------------
+
+Lv 1: Push main/Merging feature branches
+
+- common for developers on big projects to do all work on feature branches (off of main) and then integrate that work only once it's ready
+- some developers only push and pull when on the main branch -- that way main always stays updated to what is on the remote (o/main)
+
+- for this workflow, combine two things:
+	1) integrating feature branch work onto main
+	2) pushing and pulling from remote
+
+refresher on how to update main and push work:
+	git pull --rebase; git push
+		//rebased local work onto new commits from remote AND published work to remote repo
+
+Lv 1 Problem:
+	General Outline to solve:
+		1) there are three feature branches -- side1, side2, and side3
+		2) we want to push each one of these features IN ORDER to remote
+		3) remote has since been updated, so need to incorporate that work as well
+
+Goal:
+
+	C0		C0
+	|		|
+	C1		C1
+  / / /  \		|
+C2 C3 C5  C8		C8 
+ . . .    |		|
+	  C2' (s1)	C2'
+	  |		|
+	  C3'		C3'
+	  |		|
+	  C4' (s2)	C4'
+	  |		|
+	  C5'		C5'
+	  |		|
+	  C6'		C6'
+	  |		|
+	  C7' (m*,	C7' (m)
+		om,
+		s3)
+	 
+git checkout main; git pull --rebase
+git checkout side1; git rebase main
+git checkout side2; git rebase side1
+git checkout side3; git rebase side2
+git checkout main
+git branch-f main side3
+git push
+
+*NOTE: any git command with pull will only succeed if head is pointed to branch with ???
+
+More Efficient Solution:
+
+git fetch //downloads commit(s) that remote repo has that local repo doesnt WHILE ALSO updating local rep of remote branches -> newly downloaded commit branches off commit where o/main was previously pointed to
+git rebase o/main side1 //rebases C2' under o/main with side1* pointing to it
+git rebase side1 side2 //rebases all commits up to side2 under side1 with side2* pointing to most recent commit
+git rebase side2 side3 //rebases all commits up to side3 under side2 with side3* pointing to most recent commit
+git rebase side3 main //since main was previously located at ancestor of all commits, simply moves main to point to same commit as side3 and updates head to point to main
+git push //pushes all changes to remote repo (C2' - C7') and updates location of remote main branch (o/main) in local repo
+
+Lv 2: Merging with Remotes/Why not Merge?
+
+- in order to push new updates to remote, all you need to do is INCORPORATE latest changes from remote
+	-> can either rebase or merge in remote branch
+-> why rebase instead of merge?
+
+Pros:
+	-rebasing makes commit tree look clean/organized since everything is in straight line
+
+Cons:
+	-rebasing modifies the (apparent) history of commit tree
+
+- some prefer to preserve history and thus, prefer merging
+
+Lv 2 Problem:
+	Try solving previous level but with merging instead of rebasing
+
+	git checkout main; git merge side1 //sets head to main and points main* to side1
+	git pull //since pull is combo of fetch and merge, download most recent commit from remote repo -> creates new merge commit with parents side1 and C8 (commit from remote), main* is pointed to merge commit
+	git merge side2 //now that we've incorporated latest changes from remote into a local commit, all we need to do is merge C9 with side2 (which contains changes from its ancestor commits)
+	git merge side3 //same as above
+	git push //push all changes to remote repo
+
+Lv 3: Remote-tracking branches
+
+- connection between main branch and remote main branch (o/main) demonstrated in two scenarios:
+	1) during pull, commits are downloaded onto o/main and then MERGED into local main branch
+		-> implied target of merge determined from this connection
+	2) during push, work from local main was pushed onto remote's main branch
+		-> destination of push is determined from this connection
+||
+\/
+Remote Tracking: main branch is set to TRACK o/main -> there is implied merge target and implied push dest for main branch
+
+- when you clone a repo with git, this property is set for you automatically
+- during clone, git creates remote branch for every branch on remote
+	-> it then creates a local branch that tracks the currently active branch on the remote (main in most cases)
+
+- once git clone completes, you only have one local branch but you can see all the different branches on remote
+
+--> might see following command output when cloning:
+
+	local branch "main" set to track remote branch "o/main"
+
+- can be specified by user, can make any arbitrary branch track o/main
+	-> specified branch will have same implied push dest and merge target as main
+- two ways to set this property:
+	1) checkout a new branch by using a remote branch as the specified ref
+		-> git checkout -b totallyNotMain o/main
+			//creates a new branch named totallyNotMain and sets it to track o/main
+	2) simply use 
+		-> git branch -u o/main totallyNotMain
+			//sets totallyNotMain branch to track o/main
+			//if branch is currently checked out (has the *), don't need to include branch name in command	
+
+Lv 3 Problem:
+	push work onto main branch on remote while NOT checked out on main locally
+
+	git checkout -b side o/main //creates new branch side* that tracks remote main branch
+	git commit //create a commit C3 based on where head it (side* @ C1)
+	git pull --rebase //download C2 from remote repo and rebase local C3 off of it to create C3' -> side* assigned to C3'
+	git push //upload to remote repo (since C3' is based off most recent commit from remote and side* is at C3', remote main ends up pointed at C3 and consequently, o/main is also set to where side* is)
+
+Lv 4: Git push arguments
+
+- git push can take optional arguments in form of:
+	git push <remote> <place>
+ie:
+	git push origin main
+		//go to main branch in repo, grab all commits, then go to the branch main on remote named "origin" and tell me when done
+
+	*NOTE: HEAD needs to be checked out on a remote tracking branch*
+
+Lv 4 Problem:
+	update both foo and main on remote -> git checkout is disabled for level
+
+	git push origin main
+	git push origin foo
+
+Lv 5: Git push argument - expanded
+
+- <place> argument details
+	- specifies both the source of where commits come from and the dest of where the commits would go
+- if we want source and destination to be different?
+	ie: if we wanted to push commits from foo branch locally onto bar branch on remote?
+
+git push origin <source>:<destination>
+	//referred to as colon refspec (refspec means a location that git can figure out)
+
+git push origin foo^:main
+	//git resolved foo^ into location, uploaded whatever commits that weren't present yet on remote, and then uploaded destination (in this case, the remote main branch)
+
+-if destination you wanna push doesn't exist, just give a branch name and git will create branch on remote for you
+		git push origin main:newBranch
+
+Lv 5 Problem:
+	try to get to end goal state shown in visualization -> remember format of <source>:<destination>
+	
+	git push origin main^:foo //allows us to push C5 via remote tracking branch origin main
+	git push origin foo:main
+
+Lv 6: Git Fetch Arguments
+
+- arguments for git fetch are very similar to those for git push
+
+git fetch origin foo
+	//git will go to the foo branch on remote, grab all commits that aren't present locally, and place them onto o/foo branch locally
+
+Lv 6 Problem:
+	fetch just the specified commits in goal visual -> will have to specify source and dest for both fetch commands
+
+	git fetch origin foo:main
+	git fetch origin main^:foo
+	git checkout foo
+	git merge main
+
+Lv 7: Source of Nothing/Oddities of <source>
+
+- can technically specify "nothing" as a valid source for both git push and git fetch, specify via empty argument:
+	- git push origin :side
+	- git fetch origin :bugFix
+
+ie: 
+
+git push origin :foo
+	//deletes foo branch on remote by pushing concept of "nothing" to it
+
+git fetch origin :bar
+	//fetching "nothing" to a place locally makes a new branch
+	//new branch bar is made locally
+
+Lv 7 Problem:
+	just delete one remote branch and create a new branch to complete
+
+	git push origin :foo
+	git fetch origin :bar
+
+Lv 8: Git Pull Arguments
+
+- git pull is essentially shorthand for a fetch followed by merging in whatever was fetched
+	-> think of it as running git fetch with same arguments specified and then merging where those commits end up
+
+ie:
+
+git pull origin foo <=> git fetch origin foo; git merge o/foo
+
+git pull origin bar~1:bugFix <=> git fetch origin bar~1:bugFix; git merge bugFix
+
+ex:
+
+git pull origin main
+	//by specifying main, we downloaded commits onto o/main normally -> merged o/main to currently checked out location (NOT local branch main)
+
+git pull origin main:foo
+	//created new branch locally named foo, downloaded commits from remote main onto foo, then merged that branch into currently checked out branch bar
+
+Lv 8 Problem:
+	will need to download some commits, make up some branches, and merge those branches into other branches
+
+	git pull origin bar:foo
+	git pull origin main:side
+
+
+------------------------------------------------------------------------------------------s
+
+*Only need to go to local branch for changes if there are multiple people workinng on project at same time*
+
+git branch "branch name" : creates new branch
+
+git merge "branch name" : merges branch name to main 
+
+git rebase "branch name" : takes a set of commits, copies them, and sets them to specified branch
+
+git checkout "branch name" : switches in between branches that already exist
+	-B: creates new local branch
+
+git add "file name": stages changes for commit
+	add *: for everything instead of just onen file
+
+git commit: updates changes and prepares for push
+	-m: add info about whats beingn changed
+
+git push origin "current branch name": pushes changes into main branch
+
+git fetch: syncs online github with local devices git
+
+git pull: grabs everything from github and adds it to local git -> makes everything up to date
